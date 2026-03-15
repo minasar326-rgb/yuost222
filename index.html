@@ -1,0 +1,274 @@
+ئزهاو<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head> ر
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام حضور الطلاب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- QuaggaJS for barcode -->
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    
+    <!-- docx for Word reports -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+
+
+    <!-- Firebase SDKs -->
+
+    <script type="module">
+      // Firebase will be imported in firebase.js
+    </script>
+    <script type="module" src="firebase.js"></script>
+
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 min-h-screen text-white font-sans">
+    <!-- Sidebar -->
+    <div id="sidebar" class="fixed inset-y-0 right-0 z-50 w-64 bg-white/20 backdrop-blur-lg shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold mb-8 text-white drop-shadow-lg">نظام الحضور</h1>
+            <nav>
+                <ul class="space-y-4">
+                    <li><button onclick="logout()" class="w-full text-right py-3 px-4 rounded-xl bg-red-500/30 hover:bg-red-500/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse text-red-100"><span>🚪</span>تسجيل الخروج</button></li>
+                    <li><button onclick="showSection('dashboard')" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>📊</span>لوحة التحكم</button></li>
+                    <li><button onclick="showSection('students-management')" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>👥</span>قائمة الطلاب</button></li>
+                    <li><button onclick="showSection('add-student')" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>➕</span>إضافة طالب</button></li>
+
+                    <li><button onclick="showSection('attendance')" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>✅</span>تسجيل حضور</button></li>
+                    <li><button onclick="showSection('search')" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>🔍</span>بحث طالب</button></li>
+                    <li><button onclick="showSection('reports')" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>📄</span>التقارير</button></li>
+                    <li><button onclick="showBarcodePage()" class="w-full text-right py-3 px-4 rounded-xl bg-white/30 hover:bg-white/50 transition-all duration-200 flex items-center space-x-3 space-x-reverse"><span>📱</span>مسح الباركود</button></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div id="overlay" class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm invisible opacity-0 transition-all duration-300 md:hidden" onclick="toggleSidebar()"></div>
+
+<!-- Login Section -->
+    <!-- Login Section -->
+    <section id="login-section" class="section fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="bg-white/30 backdrop-blur-xl rounded-3xl p-12 shadow-2xl max-w-md w-full mx-6 animate-pulse">
+            <h2 class="text-4xl font-black mb-8 text-center text-white drop-shadow-2xl">نظام حضور الطلاب</h2>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label class="block text-white mb-3 font-bold text-xl">اسم المستخدم</label>
+                    <input type="text" id="login-username" required class="w-full p-5 rounded-2xl bg-white/60 border-2 border-white/40 focus:border-blue-400 focus:outline-none text-black text-xl font-bold text-center transition-all duration-300" placeholder="admin">
+                </div>
+                <div>
+                    <label class="block text-white mb-3 font-bold text-xl">كلمة السر</label>
+                    <input type="password" id="login-password" required class="w-full p-5 rounded-2xl bg-white/60 border-2 border-white/40 focus:border-blue-400 focus:outline-none text-black text-xl font-bold text-center transition-all duration-300" placeholder="123456">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-black py-5 px-8 rounded-2xl shadow-2xl text-2xl transition-all duration-300 transform hover:scale-105">دخول النظام</button>
+            </form>
+            <p class="text-center mt-6 text-white/80 text-lg">تجربة: admin / 123456</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main id="main-content" class="p-6 md:pr-72 pt-20 hidden">
+
+        <!-- Dashboard -->
+        <section id="dashboard-section" class="section">
+            <h2 class="text-3xl font-bold mb-8 drop-shadow-lg">لوحة التحكم</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-2">إجمالي الطلاب</h3>
+                    <p id="total-students" class="text-3xl font-black">0</p>
+                </div>
+                <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-2">حضور اليوم</h3>
+                    <p id="today-present" class="text-3xl font-black text-green-300">0</p>
+                </div>
+                <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-2">غياب اليوم</h3>
+                    <p id="today-absent" class="text-3xl font-black text-red-300">0</p>
+                </div>
+                <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-2">أكثر غياب</h3>
+                    <p id="top-absentee" class="text-xl font-bold">--</p>
+                </div>
+            </div>
+            <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                <h3 class="text-2xl font-bold mb-6">آخر الحضور</h3>
+                <div id="recent-attendance" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            </div>
+        </section>
+
+        <!-- Add Student -->
+        <section id="add-student-section" class="section hidden">
+            <h2 class="text-3xl font-bold mb-8 drop-shadow-lg">إضافة طالب جديد</h2>
+            <form id="add-student-form" class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl max-w-md">
+                <div class="mb-6">
+                    <label class="block text-white mb-2 font-bold">اسم الطالب</label>
+                    <input type="text" id="student-name" required class="w-full p-4 rounded-xl bg-white/50 border border-white/30 focus:border-blue-300 focus:outline-none text-black font-bold">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-white mb-2 font-bold">كود الطالب</label>
+                    <input type="number" id="student-code" required min="1000" max="9999" class="w-full p-4 rounded-xl bg-white/50 border border-white/30 focus:border-blue-300 focus:outline-none text-black font-bold">
+                </div>
+                <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl shadow-xl transition-all duration-200 text-xl">إضافة الطالب</button>
+            </form>
+            <div id="students-list" class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- Attendance -->
+        <section id="attendance-section" class="section hidden">
+            <h2 class="text-3xl font-bold mb-8 drop-shadow-lg">تسجيل الحضور</h2>
+            <div id="day-status" class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 mb-8 shadow-2xl text-center">
+                <h3 class="text-2xl font-bold mb-4">اليوم: <span id="current-day"></span></h3>
+                <p id="attendance-allowed" class="text-xl font-bold text-green-300 hidden">✅ يمكن تسجيل الحضور</p>
+                <p id="attendance-blocked" class="text-xl font-bold text-red-300 hidden">⛔ لا يمكن تسجيل الحضور اليوم</p>
+            </div>
+            <div id="part-selector" class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 mb-8 shadow-2xl hidden">
+                <h3 class="text-xl font-bold mb-4">اختر الجزء</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <button onclick="selectPart(1)" id="part1-btn" class="bg-blue-500 hover:bg-blue-600 p-6 rounded-xl font-bold text-xl shadow-xl transition-all">الجزء الأول<br><small>تسبحة + محاضرة 1</small></button>
+                    <button onclick="selectPart(2)" id="part2-btn" class="bg-purple-500 hover:bg-purple-600 p-6 rounded-xl font-bold text-xl shadow-xl transition-all">الجزء الثاني<br><small>قداس + محاضرة 2</small></button>
+                    <button onclick="selectPart(3)" id="part3-btn" class="bg-green-500 hover:bg-green-600 p-6 rounded-xl font-bold text-xl shadow-xl transition-all">الجزء الثالث<br><small>النوتة الروحية</small></button>
+                </div>
+
+            </div>
+            <form id="attendance-form" class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl max-w-md mx-auto hidden">
+                <div class="mb-6">
+                    <label class="block text-white mb-2 font-bold">اسم الطالب أو الكود</label>
+                    <input type="text" id="attendance-name-or-code" placeholder="اكتب الاسم أو الكود... مثال: أحمد / 1001" class="w-full p-4 rounded-xl bg-white/50 border border-white/30 focus:border-blue-300 focus:outline-none text-black font-bold text-xl text-center">
+                </div>
+
+                <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl shadow-xl transition-all text-xl mb-4">تسجيل الحضور</button>
+                <button type="button" onclick="showBarcodePage()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-xl shadow-xl transition-all text-xl">📱 مسح الباركود (صفحة كاملة)</button>
+            </form>
+            <div id="attendance-result" class="mt-8 text-center hidden">
+                <p id="result-message" class="text-2xl font-bold"></p>
+            </div>
+            
+            <!-- Barcode Scanner -->
+            <div id="barcode-scanner" class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl mt-8 hidden">
+                <h3 class="text-xl font-bold mb-4 text-center">📱 مسح الباركود</h3>
+                <div id="scanner-container" class="relative w-full h-64 rounded-xl overflow-hidden bg-black/30 mb-4 hidden">
+                    <video id="scanner-video" class="w-full h-full object-cover"></video>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="scanner-frame w-48 h-48 border-4 border-green-400 rounded-lg opacity-75"></div>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="startBarcodeScanner()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl shadow-xl transition-all">▶️ بدء المسح</button>
+                    <button onclick="stopBarcodeScanner()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-xl shadow-xl transition-all hidden">⏹️ إيقاف</button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Search -->
+        <section id="search-section" class="section hidden">
+            <h2 class="text-3xl font-bold mb-8 drop-shadow-lg">بحث عن طالب</h2>
+            <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 mb-8 shadow-2xl max-w-2xl mx-auto">
+                <input type="text" id="search-input" placeholder="ابحث بالاسم أو الكود..." class="w-full p-6 rounded-2xl bg-white/50 border border-white/30 focus:border-blue-300 focus:outline-none text-black font-bold text-xl text-center">
+            </div>
+            <div id="search-result" class="max-w-4xl mx-auto"></div>
+        </section>
+
+        <!-- Students Management -->
+        <section id="students-management-section" class="section hidden">
+            <h2 class="text-3xl font-bold mb-8 drop-shadow-lg">👥 إدارة الطلاب</h2>
+            <div class="mb-8 text-center">
+                <input type="text" id="students-search" placeholder="🔍 ابحث عن طالب..." class="w-full max-w-2xl p-6 rounded-2xl bg-white/30 border border-white/30 focus:border-blue-400 focus:outline-none text-black font-bold text-xl text-center mx-auto">
+            </div>
+            <div id="students-management-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+        </section>
+
+        <!-- Student Details Modal -->
+        <div id="student-modal" class="fixed inset-0 z-70 bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="bg-white/20 backdrop-blur-2xl rounded-3xl p-8 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 id="modal-student-name" class="text-3xl font-black"></h3>
+                    <button onclick="closeStudentModal()" class="text-2xl hover:scale-110 transition-transform">✕</button>
+                </div>
+                <div id="modal-student-content" class="space-y-6"></div>
+            </div>
+        </div>
+
+        <!-- Reports -->
+        <section id="reports-section" class="section hidden">
+            <h2 class="text-3xl font-bold mb-8 drop-shadow-lg">التقارير</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                    <h3 class="text-2xl font-bold mb-6">تقرير طالب معين</h3>
+                    <input type="number" id="report-code" placeholder="كود الطالب" class="w-full p-4 mb-4 rounded-xl bg-white/50 border border-white/30 text-black">
+                    <select id="report-student-month" class="w-full p-4 mb-4 rounded-xl bg-white/50 border border-white/30 text-black">
+                      <option value="">اختر الشهر</option>
+                    </select>
+                    <button onclick="generateStudentWordReport()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-8 rounded-xl shadow-xl">📝 تقرير Word للطالب</button>
+                </div>
+                <div class="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+                    <h3 class="text-2xl font-bold mb-6">تقارير Word</h3>
+<select id="report-year" class="w-full p-4 mb-3 rounded-xl bg-white/50 border border-white/30 text-black">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                    </select>
+<select id="report-month" class="w-full p-4 mb-4 rounded-xl bg-white/50 border border-white/30 text-black">
+                        <option value="">جميع الشهور</option>
+                    </select>
+
+
+                    <div class="space-y-3">
+                      <button onclick="generateFullReport()" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-xl shadow-xl">📋 تقرير شامل Word</button>
+                      <button onclick="generateWeeklyReport(document.getElementById('report-week').value)" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl shadow-xl">📅 تقرير الأسبوع Word</button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Dedicated Barcode Page - Full Screen -->
+        <section id="barcode-page-section" class="section fixed inset-0 z-50 bg-black hidden flex flex-col items-center justify-center p-4">
+            <div class="w-full max-w-4xl mx-auto text-center">
+                <button onclick="showSection('attendance')" class="absolute top-6 right-6 z-10 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl shadow-2xl text-xl transition-all">← رجوع</button>
+                
+                <h2 class="text-3xl font-black mb-8 drop-shadow-2xl z-10 relative">📱 مسح الباركود</h2>
+                <p class="text-xl mb-12 opacity-90 z-10 relative max-w-md mx-auto">وجه الكاميرا نحو الباركود داخل الإطار الأخضر<br>سيتم تسجيل الحضور تلقائياً</p>
+                
+                <!-- Part selector for barcode page -->
+                <div id="barcode-part-selector" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 z-10 w-full max-w-2xl mx-auto">
+                    <button onclick="selectBarcodePart(1)" id="barcode-part1-btn" class="bg-blue-500 hover:bg-blue-600 p-6 rounded-xl font-bold text-xl shadow-xl transition-all">الجزء الأول</button>
+                    <button onclick="selectBarcodePart(2)" id="barcode-part2-btn" class="bg-purple-500 hover:bg-purple-600 p-6 rounded-xl font-bold text-xl shadow-xl transition-all">الجزء الثاني</button>
+                    <button onclick="selectBarcodePart(3)" id="barcode-part3-btn" class="bg-green-500 hover:bg-green-600 p-6 rounded-xl font-bold text-xl shadow-xl transition-all">النوتة الروحية</button>
+                </div>
+
+                <!-- Scanner Container Full Screen -->
+                <div id="barcode-scanner-full" class="relative w-full h-96 md:h-[500px] rounded-2xl overflow-hidden bg-gradient-to-b from-gray-900 to-black shadow-2xl">
+                    <video id="barcode-video-full" class="w-full h-full object-cover" autoplay muted playsinline></video>
+                    
+                    <!-- Enhanced Scanner Frame -->
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="scanner-frame-full w-64 h-64 md:w-80 md:h-80 border-4 border-green-400 rounded-2xl opacity-80 animate-pulse"></div>
+                    </div>
+                    
+                    <!-- Scanning animation overlay -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-green-500/20 via-transparent to-green-500/20 animate-scan opacity-0" id="scan-line"></div>
+                </div>
+                
+                <div class="mt-8 space-y-4 z-10">
+                    <div id="barcode-status" class="text-2xl font-bold text-yellow-300 py-4 px-8 bg-black/50 rounded-2xl">اختر الجزء ثم اضغط ابدأ المسح</div>
+                    <div class="flex gap-4 justify-center">
+                        <button onclick="startBarcodeFullScanner()" id="start-scan-full-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-12 rounded-2xl shadow-2xl text-xl transition-all hidden">▶️ ابدأ المسح</button>
+                        <button onclick="stopBarcodeFullScanner()" id="stop-scan-full-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-12 rounded-2xl shadow-2xl text-xl transition-all hidden">⏹️ إيقاف</button>
+                    </div>
+                    <div id="barcode-result-full" class="text-2xl font-bold hidden"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- firebase.js loaded above -->
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
+
